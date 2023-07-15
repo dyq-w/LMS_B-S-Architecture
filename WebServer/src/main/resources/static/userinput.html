@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <!-- import CSS -->
+    <link rel="stylesheet" href="/element-ui/lib/theme-chalk/index.css">
+    <style>
+        #app{
+            border:solid 1px #8c939d;
+            background-color:#C0C4CC;
+            width:1345px;
+            height: 640px;
+        }
+        .formcss{
+            position: absolute;
+            left: 520px;
+            top:120px;
+
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <el-form class="formcss" ref="form" :model="form" label-width="80px">
+        <el-form-item label="用户名" :error="nameerror">
+            <el-input v-model="form.name"></el-input>
+        </el-form-item>
+        <el-form-item label="密码" :error="passworderror">
+            <el-input v-model="form.password"></el-input>
+        </el-form-item>
+        <el-form-item label="年龄" :error="ageerror">
+            <el-input v-model="form.age"></el-input>
+        </el-form-item>
+        <el-form-item label="性别">
+            <!--<el-input v-model="form.sex"></el-input>-->
+            <template>
+                <el-radio v-model="form.sex" label="1">男</el-radio>
+                <el-radio v-model="form.sex" label="0">女</el-radio>
+            </template>
+        </el-form-item>
+        <el-form-item label="邮箱" :error="emailerror">
+            <el-input v-model="form.email"></el-input>
+        </el-form-item>
+        <el-form-item>
+            <el-button type="primary" @click="httpUserInput()">立即注册</el-button>
+            <el-button @click="userInputCancel()">取消</el-button>
+        </el-form-item>
+    </el-form>
+
+    <template>
+        <el-button type="text" @click="inputSuc"></el-button>
+    </template>
+</div>
+</body>
+<!-- import axios before Element -->
+<script src="/js/axios.min.js"></script>
+<!-- import Vue before Element -->
+<script src="/js/vue.min.js"></script>
+<!-- import JavaScript -->
+<script src="/element-ui/lib/index.js"></script>
+<script>
+    new Vue({
+        el: '#app',
+        data: function () {
+            return {
+                form: {
+                    name: '',
+                    password: '',
+                    age: '',
+                    sex: '',
+                    email: ''
+                },
+                nameerror:'',
+                passworderror:'',
+                ageerror:'',
+                emailerror:''
+            }
+        },
+        methods: {
+            inputSuc() {
+                this.$alert('注册成功', '温馨提示', {
+                    confirmButtonText: '确定',
+                    callback: action => {
+                    this.$message({
+                    type: 'info',
+                    message: `action: ${ action }`
+                });
+                window.close();
+            }
+            });
+            },
+            httpUserInput(){
+                this.nameerror = null;
+                this.passworderror = null;
+                this.ageerror = null;
+                this.emailerror = null;
+                console.log( JSON.stringify(this.form));
+                axios.post("/userinput", JSON.stringify(this.form), {headers: {'Content-Type': 'application/json'}}).then(resp=>{
+                    if(resp.data.code === 0) {
+                    this.inputSuc();
+                }else{
+                        this.nameerror = null;
+                        this.passworderror = null;
+                        this.ageerror = null;
+                        this.emailerror = null;
+                        this.nameerror = resp.data.nameerror;
+                        this.passworderror = resp.data.passwordError;
+                        this.ageerror = resp.data.ageerror;
+                        this.emailerror = resp.data.emailerror;
+                    }
+            })
+            },
+           userInputCancel(){
+                window.close()
+            }
+        }
+    })
+</script>
+
+</html>

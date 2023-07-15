@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>图书管管理系统</title>
+    <!-- import CSS -->
+    <link rel="stylesheet" href="/element-ui/lib/theme-chalk/index.css">
+    <style>
+        #app{
+            position:relative;
+            width:1345px;
+            height: 640px;
+            border:solid 1px #909399;
+            background-color:#c2e7b0;
+        }
+        .divcss{
+            position: absolute;
+            left: 590px;
+            top:100px;
+            width:150px;
+            height: 50px;
+            color: #000000;
+            font-family:"微软雅黑", "宋体", "黑体", Arial;
+            font-size: 29px;
+            height: 24px;
+            line-height: 20px;
+            text-shadow: 2px 2px 3px #222222;
+        }
+        .formcss{
+            position: absolute;
+            left: 520px;
+            top:120px;
+
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="divcss">用 户 登 录</div>
+    <el-form class="formcss" ref="form" :model="form" style="margin:20px auto;">
+        <el-form-item label="姓名：" :error="nameError">
+            <el-input style="width:300px;" v-model="form.name"></el-input>
+        </el-form-item>
+        <el-form-item label="密码：" :error="passwordError">
+            <el-input style="width:300px;" v-model="form.password" show-password></el-input>
+        </el-form-item>
+        <el-form-item style="display: inline-block">
+            <el-button type="primary" @click="onLogin">登录</el-button>
+            <el-button type="primary" @click="onRegister">注册</el-button>
+        </el-form-item>
+    </el-form>
+    </el-form>
+</div>
+</body>
+<!-- import axios before Element -->
+<script src="/js/axios.min.js"></script>
+<!-- import Vue before Element -->
+<script src="/js/vue.min.js"></script>
+<!-- import JavaScript -->
+<script src="/element-ui/lib/index.js"></script>
+<script>
+    new Vue({
+        el: '#app',
+        data: function () {
+            return {
+                form: {
+                    name: '',
+                    password: '',
+                },
+                centerDialogVisible: false,
+                nameError: '',
+                passwordError: ''
+            }
+        },
+        methods: {
+            onLogin(){
+                this.nameError = null;
+                this.passwordError = null;
+                axios.post("/login", JSON.stringify(this.form), {headers: {'Content-Type': 'application/json'}}).then(resp => {
+                    if (resp.data.code == 0) {
+                        window.open("/main.html", target = "_self");
+                    } else {
+                        console.log(resp.data);
+                        this.nameError = null;
+                        this.passwordError = null;
+                        this.nameError = resp.data.nameError;
+                        this.passwordError = resp.data.passwordError;
+                    }
+                })
+            },
+            onRegister() {
+                window.open("userinput.html");
+                }
+            },
+        mounted(){
+            sessionStorage.clear()
+            history.pushState(null,null,document.URL)
+            window.addEventListener(
+                'popstate',
+                function () {
+                    history.pushState(null,null,document.URL)
+                },
+                false
+            )
+        }
+    })
+</script>
+
+</html>

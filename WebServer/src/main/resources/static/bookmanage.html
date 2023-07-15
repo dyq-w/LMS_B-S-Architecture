@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>图书管理</title>
+    <link rel="stylesheet" href="/element-ui/lib/theme-chalk/index.css">
+    <link rel="stylesheet" href="css/bookmanage.css">
+    <style>
+        .formback{
+            background-image: url("/img/一本书.png");
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+    </style>
+</head>
+<body>
+<div id="app" style="width: 100%;margin: 0 auto;">
+    <el-button type="text" @click="quit()" style="position:absolute; color:#909399;left:1250px;top:20px;"><i class="el-icon-switch-button"></i> 退 出</el-button>
+    <el-container style="height: 100%; border: 1px solid #eee">
+        <el-aside width="200px" style="background-color: rgb(238, 241, 246)">
+            <el-menu @select="headerSelect">
+                <el-submenu index="1">
+                    <template slot="title"><i class="el-icon-reading"></i>图书录入</template>
+                    <el-menu-item-group>
+                        <el-menu-item index="11">录入</el-menu-item>
+                    </el-menu-item-group>
+                </el-submenu>
+                <el-submenu index="2">
+                    <template slot="title"><i class="el-icon-setting"></i>图书修改</template>
+                    <el-menu-item-group>
+                        <template slot="title">分组一</template>
+                        <el-menu-item index="21">书名</el-menu-item>
+                        <el-menu-item index="22">作者</el-menu-item>
+                        <el-menu-item index="23">出版社</el-menu-item>
+                    </el-menu-item-group>
+                    <el-menu-item-group>
+                        <template slot="title">分组二</template>
+                        <el-menu-item index="24">书籍类型</el-menu-item>
+                        <el-menu-item index="25">库存数</el-menu-item>
+                    </el-menu-item-group>
+
+                </el-submenu>
+                <el-submenu index="3">
+                    <template slot="title"><i class="el-icon-delete"></i>图书删除</template>
+                    <el-menu-item-group>
+                        <el-menu-item index="31">删除</el-menu-item>
+                    </el-menu-item-group>
+                </el-submenu>
+            </el-menu>
+        </el-aside>
+
+        <el-container>
+            <el-header style="text-align: center; font-size: 20px;font-weight: bold">
+                <span >图 书 管 理</span>
+            </el-header>
+
+            <el-main style="height: 100%;background-color: rgb(236,245,255)">
+                <el-form class="formback" v-if="visiblediv=='' " style="width:100%; height: 540px;">
+
+                </el-form>
+                <el-form ref="form" :model="form" label-width="80px" v-if="visiblediv=='bookinput' " style="width:600px; margin: 0 auto;">
+                    <el-form-item label="书名" :error="nameerror">
+                        <el-input v-model="form.name"></el-input>
+                    </el-form-item>
+                    <el-form-item label="作者" :error="authorerror">
+                        <el-input v-model="form.author"></el-input>
+                    </el-form-item>
+                    <el-form-item label="出版社" :error="presserror">
+                        <el-input v-model="form.press"></el-input>
+                    </el-form-item>
+                    <el-form-item label="出版时间" :error="publicTimeerror">
+                        <el-col :span="11">
+                            <el-date-picker type="date" placeholder="选择日期" v-model="form.publicTime" style="width: 100%;"></el-date-picker>
+                        </el-col>
+                    </el-form-item>
+                    <el-form-item label="图书类型">
+                        <el-input v-model="form.category"></el-input>
+                    </el-form-item>
+                    <el-form-item label="图书位置" :error="siteerror">
+                        <el-input placeholder="格式：xxx-xxx-xxx" v-model="form.site"></el-input>
+                    </el-form-item>
+                    <el-form-item label="库存" :error="reserveerror">
+                        <el-input v-model="form.reserve"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" @click="httpBookInput()"> 录 入</el-button>
+                    </el-form-item>
+                </el-form>
+                <el-table
+                        :data="updatetable"
+                        max-height="500"
+                        style="width: 100%"
+                        v-if="visiblediv=='changebook'">
+                    <el-table-column
+                            width="110"
+                            align="center"
+                            label="序号">
+                        <template slot-scope="scope">
+                            <span>{{scope.$index + 1}}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column
+                            prop="name"
+                            label="名称"
+                            width="130">
+                    </el-table-column>
+                    <el-table-column
+                            prop="author"
+                            label="作者"
+                            width="130">
+                    </el-table-column>
+                    <el-table-column
+                            prop="press"
+                            label="出版社"
+                            width="130">
+                    </el-table-column>
+                    <el-table-column
+                            prop="publicTime"
+                            label="出版时间"
+                            width="130"
+                            :formatter="formatter">
+                    </el-table-column>
+                    <el-table-column
+                            prop="site"
+                            label="位置"
+                            width="130">
+                    </el-table-column>
+                    <el-table-column
+                            prop="reserve"
+                            label="库存"
+                            align="center"
+                            width="100">
+                    </el-table-column>
+                    <el-table-column
+                            align="center"
+                            label="操作"
+                            width="120">
+                        <template slot-scope="scope">
+                            <el-button v-if="buttonvisible=='update' " @click="updatebook(scope.$index)" type="text" size="small"> 修 改</el-button>
+                            <el-button v-if="buttonvisible=='delete' " @click="deletebook(scope.$index)" type="text" size="small"> 删 除</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-main>
+        </el-container>
+    </el-container>
+    <el-dialog
+            title="操作提示"
+            :visible.sync="dialogVisible"
+            width="30%">
+        <span>请输入书的{{selectindex}}</span>
+        <el-input v-model="selectbookbyit" placeholder="请输入内容"></el-input>
+        <span slot="footer" class="dialog-footer">
+    <el-button @click="dialogVisible = false">取 消</el-button>
+    <el-button type="primary" @click="defselect()">确 定</el-button>
+        </span>
+    </el-dialog>
+    <el-dialog
+            title="请完成修改"
+            :visible.sync="dialogChangeVisible"
+            width="30%"
+            center>
+        <span>书名</span>
+        <el-input v-model="book.name" disabled></el-input>
+        <span>位置</span>
+        <el-input v-model="site" placeholder="请输入内容（选填）"></el-input>
+        <span>库存</span>
+        <el-input v-model="reserve" placeholder="请输入内容（选填）"></el-input>
+        <span slot="footer" class="dialog-footer">
+    <el-button @click="dialogChangeVisible = false">取 消</el-button>
+    <el-button type="primary" @click="defchange()">确 定</el-button>
+        </span>
+    </el-dialog>
+
+</div>
+</body>
+<!-- import axios before Element -->
+<script src="/js/axios.min.js"></script>
+<!-- import Vue before Element -->
+<script src="/js/vue.min.js"></script>
+<!-- import JavaScript -->
+<script src="/element-ui/lib/index.js"></script>
+<script>
+    new Vue({
+        el: '#app',
+        data: function () {
+            return {
+                form: {
+                    name: '',
+                    author: '',
+                    press: '',
+                    publicTime: '',
+                    site: '',
+                    category: '',
+                    reserve: ''
+                },
+                book:[],
+                site:'',
+                reserve:'',
+                updatetable:[],
+                buttonvisible:'',
+                visiblediv:'',
+                centerDialogVisible: false,
+                dialogChangeVisible:false,
+                nameerror:'',
+                authorerror:'',
+                presserror:'',
+                publicTimeerror:'',
+                siteerror:'',
+                reserveerror:'',
+                selectbookbyit:'',
+                selectindex:'',
+                dialogVisible:false
+
+            }
+        },
+        methods: {
+            headerSelect(key,keypath){
+                console.log(key,keypath);
+                this.buttonvisible = 'update';
+                if(key == 11){
+                    this.visiblediv = 'bookinput';
+                }
+                if(key == 21){
+                    this.selectindex  = '名称';
+                    this.visiblediv = '';
+                    this.dialogVisible = true;
+                }
+                if(key == 22){
+                    this.selectindex  = '作者';
+                    this.visiblediv = '';
+                    this.dialogVisible = true;
+                }
+                if(key == 23){
+                    this.selectindex  = '出版社';
+                    this.visiblediv = '';
+                    this.dialogVisible = true;
+                }
+                if(key == 24){
+                    this.selectindex  = '类型';
+                    this.visiblediv = '';
+                    this.dialogVisible = true;
+                }
+                if(key == 25){
+                    this.selectindex  = '库存数';
+                    this.visiblediv = '';
+                    this.dialogVisible = true;
+                }
+                if(key == 31){
+                    this.selectindex = '名称';
+                    this.visiblediv = '';
+                    this.dialogVisible = true;
+                    this.buttonvisible='delete';
+                }
+            },
+            inputSuc() {
+                this.$message({
+                    showClose: true,
+                    message: '录入成功',
+                    type: 'success',
+                    center: true
+                });
+            },
+            inputDele() {
+                this.$message({
+                    showClose: true,
+                    message: '删除成功',
+                    type: 'success',
+                    center: true
+                });
+            },
+            inputSucchange() {
+                this.$message({
+                    showClose: true,
+                    message: '修改成功',
+                    type: 'success',
+                    center: true
+                });
+            },
+            inputErrCount() {
+                this.$message({
+                    showClose: true,
+                    message: '库存数不能为负数',
+                    type: 'error',
+                    center: true
+                });
+            },
+            inputErrSite() {
+                this.$message({
+                    showClose: true,
+                    message: '位置输入错误',
+                    type: 'error',
+                    center: true
+                });
+            },
+            formatter(row) {
+                return new Date(row.publicTime).toLocaleDateString();
+            },
+            httpBookInput(){
+                this.nameerror = null;
+                this.authorerror = null;
+                this.presserror = null;
+                this.publicTimeerror = null;
+                this.siteerror = null;
+                this.reserveerror =null;
+                this.form.publicTime = new Date(this.form.publicTime).getTime();
+                axios.post("/bookinput", JSON.stringify(this.form), {headers: {'Content-Type': 'application/json'}}).then(resp=>{
+                    if(resp.data.code === 0) {
+                        this.inputSuc();
+                        this.form = this.$options.data().form;
+                    }else{
+                        this.nameerror = null;
+                        this.authorerror = null;
+                        this.presserror = null;
+                        this.publicTimeerror = null;
+                        this.siteerror = null;
+                        this.reserveerror =null;
+                        this.nameerror = resp.data.nameerror;
+                        this.authorerror = resp.data.authorerror;
+                        this.presserror = resp.data.presserror;
+                        this.publicTimeerror = resp.data.publicTimeerror;
+                        this.siteerror = resp.data.siteerror;
+                        this.reserveerror = resp.data.reserveerror;
+                    }
+                })
+            },
+            quit(){
+                window.close();
+            },
+            defselect(){
+                this.dialogVisible=false;
+                if(this.selectindex =='名称'){
+                    axios.get("/getbookbyname?name="+this.selectbookbyit).then(resp=> {
+                        this.updatetable = resp.data;
+                    })
+                }
+                if(this.selectindex =='作者'){
+                    axios.get("/getbookbyauthor?author="+this.selectbookbyit).then(resp=> {
+                        this.updatetable = resp.data;
+                    })
+                }
+                if(this.selectindex =='出版社'){
+                    axios.get("/getbookbypress?press="+this.selectbookbyit).then(resp=> {
+                        this.updatetable = resp.data;
+                    })
+                }
+                if(this.selectindex =='类型'){
+                    axios.get("/getbookbycategory?category="+this.selectbookbyit).then(resp=> {
+                        this.updatetable = resp.data;
+                    })
+                }
+                if(this.selectindex =='库存数'){
+                    axios.get("/getbookbyreserve?reserve="+this.selectbookbyit).then(resp=> {
+                        this.updatetable = resp.data;
+                    })
+                }
+                this.visiblediv = 'changebook';
+            },
+            defchange(){
+                if(this.site==''){
+                    this.site = this.book.site;
+                }
+                if(this.reserve==''){
+                    this.reserve = this.book.reserve;
+                }
+                axios.post("/changebook",{site:this.site,reserve:this.reserve,id:this.book.id},{headers: {'Content-Type': 'application/json'}}).then(resp=>{
+
+                    if(resp.data == 2){
+
+                        this.inputErrSite();
+                    }
+                    if(resp.data == 1){
+                        this.inputErrCount();
+                    }
+                    if(resp.data == 0){
+                        this.inputSucchange();
+                        this.defselect()
+                        this.dialogChangeVisible=false;
+                        this.selectbookbyit='';
+
+                    }
+                })
+            },
+            updatebook(i){
+                this.book = this.updatetable[i];
+                this.dialogChangeVisible=true;
+            },
+            deletebook(index){
+                axios.get("/deletebook?id="+this.updatetable[index].id).then(resp=>{
+                    if(resp.data == 0){
+                        this.inputDele();
+                        this.defselect();
+                        this.selectbookbyit='';
+                    }
+                })
+            }
+        }
+    })
+</script>
+
+</html>

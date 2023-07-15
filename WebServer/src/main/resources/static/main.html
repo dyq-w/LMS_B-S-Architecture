@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <!-- import CSS -->
+    <link rel="stylesheet" href="/element-ui/lib/theme-chalk/index.css">
+    <link rel="stylesheet" href="css/card.css">
+    <style>
+        .el-table .tre-red{
+            color:red !important;
+        }
+        .el-carousel__item h3 {
+            color: #475669;
+            font-size: 14px;
+            opacity: 0.75;
+            line-height: 600px;
+            margin: 0;
+        }
+        .block .el-carousel__item:nth-child(3) {
+            background-image: url("img/1.png");
+        }
+        .block .el-carousel__item:nth-child(4) {
+              background-image: url("img/2.png");
+        }
+        .block .el-carousel__item:nth-child(5) {
+            background-image: url("img/生活更精彩.png");
+        }
+        #caledaty{
+            margin:0 auto;
+            width:1100px;
+        }
+        .el-calendar-table .el-calendar-day {
+            height: 60px;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!--页面头部导航栏，default-active：默认显示的index-->
+    <el-header>
+        <el-menu default-active="1" class="el-menu-demo" mode="horizontal" @select="headerSelect">
+            <el-menu-item index="1">图书馆</el-menu-item>
+            <el-menu-item index="2">个人主页</el-menu-item>
+            <el-menu-item index="3">日历</el-menu-item>
+            <template>
+                <i class="el-icon-s-custom" style="position: absolute; left:1060px; top:33px; color:#9195a3; font-size: 13px;"> [ 用户 ：{{user.name}} ] </i>
+                <el-popconfirm
+                        title="确定退出吗？"
+                        trigger="click"
+                        @confirm="quit()"
+                >
+                    <el-button style="margin-left: 950px; margin-top: 20px;" type="text" slot="reference">退出登录</el-button>
+                </el-popconfirm>
+            </template>
+        </el-menu>
+
+    </el-header>
+
+    <!--图书馆主页页面:左侧导航栏，右侧主页面-->
+    <el-container v-if="headerSelected=='lib-main'">
+        <el-aside width="150px">
+            <el-col>
+                <el-menu
+                        default-active="1"
+                        class="el-icon-s-home"
+                        @select="libAsideSelect">
+                    <el-menu-item index="1">
+                        <i class="el-icon-menu"></i>
+                        <span slot="title">所有图书</span>
+                    </el-menu-item>
+                    <el-menu-item index="2">
+                        <i class="el-icon-s-data"></i>
+                        <span slot="title">排行榜</span>
+                    </el-menu-item>
+                    <el-menu-item index="3" v-if="isManager == true">
+                        <i class="el-icon-s-management"></i>
+                        <span slot="title">管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="4">
+                        <i class="el-icon-loading"></i>
+                        <span slot="title">公告</span>
+                    </el-menu-item>
+                </el-menu>
+            </el-col>
+        </el-aside>
+        <el-main v-if="libAsideSelected=='lib-books'">
+            <!--搜索框-->
+            <div style="margin-top: 15px;">
+                <el-input placeholder="请输入内容" v-model="bookQueryStr" class="input-with-select">
+                    <el-button slot="append" type="primary" icon="el-icon-search" @click="httpQueryBooks()">搜索
+                    </el-button>
+                </el-input>
+            </div>
+            <!--书籍table-->
+            <el-table
+                    :data="books"
+                    max-height="500"
+                    style="width: 100%"
+                    :default-sort="{prop: 'date', order: 'descending'}"
+                    @row-click="testListener"
+                    :row-class-name="tableAddClass01"
+            >
+                <el-table-column
+                        min-width="120"
+                        align="center"
+                        label="序号">
+                    <template slot-scope="scope">
+                        <span>{{startIndex + scope.$index + 1}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column
+                        prop="name"
+                        label="名称"
+                        sortable
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="author"
+                        label="作者"
+                        sortable
+                        width="120">
+                </el-table-column>
+                <el-table-column
+                        prop="press"
+                        label="出版社"
+                        sortable
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="publicTime"
+                        label="出版时间"
+                        sortable
+                        width="180"
+                        :formatter="formatter">
+                </el-table-column>
+                <el-table-column
+                        prop="site"
+                        label="位置"
+                        sortable
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="reserve"
+                        label="库存"
+                        align="center"
+                        sortable
+                        width="100">
+                </el-table-column>
+                <el-table-column
+                        label="评分"
+                        align="center"
+                        width="180">
+                    <template slot-scope="scope">
+                        <el-rate
+                                v-model="books[scope.$index].rate"
+                                disabled
+                                show-score
+                                text-color="#ff9900">
+                        </el-rate>
+                    </template>
+                </el-table-column>
+                <el-table-column
+                        fixed="right"
+                        align="center"
+                        label="操作"
+                        width="120">
+                    <template v-model="visible" slot-scope="scope">
+                        <el-button v-if="!(visible[scope.$index])" @click="borrow(scope.$index)" type="text" size="small">借阅</el-button>
+                        <el-button v-if="visible[scope.$index]" style="margin:1px; padding: 7px; color:green" @click="defBorrow()" icon="el-icon-circle-check"></el-button>
+                        <el-button v-if="visible[scope.$index]" style="margin:1px; padding: 7px; color:red" @click="visible=[]" icon="el-icon-circle-close"></el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-pagination
+                    @size-change="handleSizeChange"
+                    @current-change="handleCurrentChange"
+                    :current-page="currentPage"
+                    :page-sizes="[10, 50, 100, 500]"
+                    :page-size="10"
+                    layout="total, sizes, prev, pager, next, jumper"
+                    :total="bookCount">
+            </el-pagination>
+        </el-main>
+        <el-main v-if="libAsideSelected=='lib-rank'">
+            <el-button size="small" @click="tableSelect='rate'">评分</el-button>
+            <el-button size="small" @click="tableSelect='reserve'">书籍库存</el-button>
+            <el-button size="small" @click="tableSelect='publicTime'">出版时间</el-button>
+            <el-table
+                    :data="rateTable"
+                    max-height="500"
+                    style="width: 100%"
+                    v-if=" tableSelect=='rate' "
+                    v-model="tableSelect"
+            >
+                <el-table-column
+                        width="109"
+                        align="center"
+                        label="排名">
+                    <template slot-scope="scope">
+                        <span>{{scope.$index + 1}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column
+                        prop="name"
+                        label="书名"
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="author"
+                        label="作者"
+                        width="129">
+                </el-table-column>
+                <el-table-column
+                        prop="press"
+                        label="出版社"
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="publicTime"
+                        label="出版时间"
+                        width="129"
+                        :formatter="formatter">
+                </el-table-column>
+                <el-table-column
+                        prop="reserve"
+                        align="center"
+                        label="库存"
+                        width="120">
+                </el-table-column>
+                <el-table-column
+                        label="评分"
+                        align="center"
+                        width="180">
+                    <template slot-scope="scope">
+                        <el-rate
+                                v-model="rateTable[scope.$index].rate"
+                                disabled
+                                show-score
+                                text-color="#ff9900">
+                        </el-rate>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-table
+                    :data="reserveTable"
+                    max-height="500"
+                    style="width: 100%"
+                    v-if=" tableSelect=='reserve' "
+                    v-model="tableSelect"
+            >
+                <el-table-column
+                        width="109"
+                        align="center"
+                        label="排名">
+                    <template slot-scope="scope">
+                        <span>{{scope.$index + 1}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column
+                        prop="name"
+                        label="书名"
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="author"
+                        label="作者"
+                        width="129">
+                </el-table-column>
+                <el-table-column
+                        prop="press"
+                        label="出版社"
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="publicTime"
+                        label="出版时间"
+                        width="129"
+                        :formatter="formatter">
+                </el-table-column>
+                <el-table-column
+                        prop="reserve"
+                        align="center"
+                        label="库存"
+                        width="120">
+                </el-table-column>
+                <el-table-column
+                        label="评分"
+                        align="center"
+                        width="180">
+                    <template slot-scope="scope">
+                        <el-rate
+                                v-model="reserveTable[scope.$index].rate"
+                                disabled
+                                show-score
+                                text-color="#ff9900">
+                        </el-rate>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-table
+                    :data="publicTimeTable"
+                    max-height="500"
+                    style="width: 100%"
+                    v-if=" tableSelect=='publicTime' "
+                    v-model="tableSelect"
+            >
+                <el-table-column
+                        width="109"
+                        align="center"
+                        label="排名">
+                    <template slot-scope="scope">
+                        <span>{{scope.$index + 1}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column
+                        prop="name"
+                        label="书名"
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="author"
+                        label="作者"
+                        width="129">
+                </el-table-column>
+                <el-table-column
+                        prop="press"
+                        label="出版社"
+                        width="180">
+                </el-table-column>
+                <el-table-column
+                        prop="publicTime"
+                        label="出版时间"
+                        width="129"
+                        :formatter="formatter">
+                </el-table-column>
+                <el-table-column
+                        prop="reserve"
+                        align="center"
+                        label="库存"
+                        width="120">
+                </el-table-column>
+                <el-table-column
+                        label="评分"
+                        align="center"
+                        width="180">
+                    <template slot-scope="scope">
+                        <el-rate
+                                v-model="publicTimeTable[scope.$index].rate"
+                                disabled
+                                show-score
+                                text-color="#ff9900">
+                        </el-rate>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-main>
+        <el-main v-if="libAsideSelected=='lib-manage'">
+
+            <el-row>
+                <el-col :span="8" :key="1">
+                    <el-card :body-style="{ padding: '0px' }">
+                        <img src="img/bookinput.png" class="image">
+                        <div style="padding: 14px;">
+                            <div class="bottom clearfix">
+                                <el-button type="text" class="button" @click="bookManage()">图书管理</el-button>
+                            </div>
+                        </div>
+                    </el-card>
+                </el-col>
+                <el-col :span="8" :key="2">
+                    <el-card :body-style="{ padding: '0px' }">
+                        <img src="img/1.png" class="image">
+                        <div style="padding: 14px;">
+                            <div class="bottom clearfix">
+                                <el-button type="text" class="button" @click="userManage()">用户管理</el-button>
+                            </div>
+                        </div>
+                    </el-card>
+                </el-col>
+            </el-row>
+
+        </el-main>
+        <el-main v-if="libAsideSelected=='lib-setting'">
+            <div class="block">
+                <el-carousel trigger="click" height="300px">
+                    <el-carousel-item v-for="item in 3" :key="item">
+                        <h3 class="small">{{ item }}</h3>
+                    </el-carousel-item>
+                </el-carousel>
+            </div>
+            <span>借书步骤：</span>
+            <el-button type="text" style="margin-top: 12px;" @click="next">下一步</el-button>
+            <el-steps :active="active" finish-status="success">
+                <el-step title="步骤 1"></el-step>
+                <el-step title="步骤 2"></el-step>
+                <el-step title="步骤 3"></el-step>
+                <el-step title="步骤 4"></el-step>
+            </el-steps>
+
+
+        </el-main>
+    </el-container>
+
+    <!--个人主页，左侧个人导航栏，右侧个人页面-->
+    <el-container v-if="headerSelected=='person-main'">
+        <el-aside width="150px">
+            <el-col>
+                <el-menu
+                        default-active="1"
+                        class="el-menu-vertical-demo"
+                        @select="personAsideSelect">
+                    <el-menu-item index="1">
+                        <i class="el-icon-s-home"></i>
+                        <span slot="title">主页</span>
+                    </el-menu-item>
+                    <el-menu-item index="2" v-if="user.role != 2">
+                        <i class="el-icon-menu"></i>
+                        <span slot="title">管理</span>
+                    </el-menu-item>
+                </el-menu>
+            </el-col>
+        </el-aside>
+        <el-main v-if="personAsideSelected=='person-main'">
+            <el-descriptions title="用户信息">
+                <el-descriptions-item label="用户名">{{user.name}}</el-descriptions-item>
+                <el-descriptions-item label="年龄">{{user.age}}</el-descriptions-item>
+                <el-descriptions-item label="性别">{{userSex}}</el-descriptions-item>
+                <el-descriptions-item label="邮箱">{{user.email}}</el-descriptions-item>
+                <el-descriptions-item label="角色">{{userRole}}</el-descriptions-item>
+                <el-descriptions-item label="备注">
+                    <el-tag size="small">学校</el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="地址">{{user.adress}}</el-descriptions-item>
+            </el-descriptions>
+            <el-button type="text" @click="dialogPersonVisible = true"><i class="el-icon-edit"></i>  修改个人信息</el-button>
+
+            <el-dialog
+                    title="个人信息修改"
+                    :visible.sync="dialogPersonVisible"
+                    width="30%"
+                    :before-close="handleClose">
+                <span>  姓名：</span>
+                <el-input  v-model="userOwnName" autocomplete="off" placeholder="请输入内容（选填）"></el-input>
+                <span>  密码：</span>
+                <el-input  v-model="userOwnPwd" placeholder="请输入内容（选填）"></el-input>
+                <span>  年龄：</span>
+                <el-input  v-model="userOwnAge" placeholder="请输入内容（选填）"></el-input>
+                <span>  邮箱：</span>
+                <el-input  v-model="userOwnEmail" placeholder="请输入内容（选填）"></el-input>
+                <span>  联系地址：</span>
+                <el-input  v-model="userOwnAdress" placeholder="请输入内容（选填）"></el-input>
+                <span slot="footer" class="dialog-footer">
+                     <el-button @click="dialogPersonVisible = false">取 消</el-button>
+                     <el-button type="primary" @click="changeOwnMessage()">确 定</el-button>
+                    </span>
+            </el-dialog>
+        </el-main>
+        <el-main v-if="personAsideSelected=='person-manage'">
+            <el-table
+                    :data="tableData"
+                    max-height="500"
+                    style="width: 100%"
+                    :row-class-name="tableAddClass"
+
+            >
+                <el-table-column
+                        width="90"
+                        align="center"
+                        label="序号">
+                    <template slot-scope="scope">
+                        <span>{{ scope.$index + 1}}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column
+                        prop="name"
+                        label="名称"
+                        width="120">
+                </el-table-column>
+                <el-table-column
+                        prop="author"
+                        label="作者"
+                        width="120">
+                </el-table-column>
+                <el-table-column
+                        prop="beginTime"
+                        label="借书日期"
+                        width="130"
+                        :formatter="formatter01">
+                </el-table-column>
+                <el-table-column
+                        prop="returnTime"
+                        label="还书日期"
+                        width="130"
+                        :formatter="formatter02">
+                </el-table-column>
+                <el-table-column
+                        prop="count"
+                        align="center"
+                        label="数量"
+                        width="80">
+                </el-table-column>
+                <el-table-column
+                        prop="remainDay"
+                        align="center"
+                        label="剩余天数"
+                        width="80">
+                </el-table-column>
+                <el-table-column label="评分" align="center" width="180">
+                    <template slot-scope="scope">
+                    <el-rate
+                            :max="5"
+                            v-model="tableData[scope.$index].rate"
+                            show-score
+                            text-color="#ff9900">
+                    </el-rate>
+                    </template>
+                </el-table-column>
+                <el-table-column
+                        align="center"
+                        label="操作"
+                        width="120">
+                    <template slot-scope="scope">
+                        <el-button  @click="returnBook(scope.$index)" type="text" size="small">还书</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-main>
+    </el-container>
+
+    <!--第三个页面，未来使用-->
+    <el-container v-if="headerSelected=='setting-main'">
+        <el-calendar id="caledaty" v-model="value">
+        </el-calendar>
+    </el-container>
+
+    <el-dialog title="图书借阅" :visible.sync="dialogFormVisible" :before-close="handleClose">
+        <el-form :model="form">
+            <el-form-item label="书名" :label-width="formLabelWidth">
+                <el-input  v-model="borrowName" :disabled="true" autocomplete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="作者" :label-width="formLabelWidth">
+                <el-input  v-model="borrowAuthor" :disabled="true" ></el-input>
+            </el-form-item>
+            <el-form-item label="库存数量" :label-width="formLabelWidth">
+                <el-input  v-model="borrowReserve" :disabled="true" ></el-input>
+            </el-form-item>
+            <el-form-item label="开始时间" :label-width="formLabelWidth">
+                <el-date-picker
+                        v-model="form.begin_time"
+                        type="date"
+                        readonly="true">
+                </el-date-picker>
+            </el-form-item>
+            <el-form-item label="结束时间" :label-width="formLabelWidth">
+                <el-date-picker
+                        v-model="form.return_time"
+                        align="left"
+                        type="date"
+                        placeholder="选择日期"
+                        :picker-options="pickerOptions">
+                </el-date-picker>
+            </el-form-item>
+            <el-form-item label="数量" :label-width="formLabelWidth">
+                <el-input v-model="form.count" autocomplete="off"></el-input>
+            </el-form-item>
+            <!--<el-form-item label="活动区域" :label-width="formLabelWidth">
+                <el-select v-model="form.region" placeholder="请选择活动区域">
+                    <el-option label="区域一" value="shanghai"></el-option>
+                    <el-option label="区域二" value="beijing"></el-option>
+                </el-select>
+            </el-form-item>-->
+        </el-form>
+        <div slot="footer" class="dialog-footer">
+            <el-button @click="cancelBorrowBook()">取 消</el-button>
+            <el-button type="primary" @click="lendBook()">确 定</el-button>
+        </div>
+    </el-dialog>
+
+</div>
+</body>
+<!-- import axios before Element -->
+<script src="/js/axios.min.js"></script>
+<!-- import Vue before Element -->
+<script src="/js/vue.min.js"></script>
+<!-- import JavaScript -->
+<script src="/element-ui/lib/index.js"></script>
+<script>
+    new Vue({
+        el: '#app',
+        data: function () {
+            return {
+                form: {
+                    user_id:'',
+                    book_id:'',
+                    begin_time:new Date(),
+                    borrow_time:'',
+                    return_time:'',
+                    count:''
+                },
+                pickerOptions: {
+                    disabledDate(time) {
+                        return time.getTime() < Date.now();
+                    },
+                    shortcuts: [{
+                        text: '一天',
+                        onClick(picker) {
+                            const date = new Date();
+                            date.setTime(date.getTime() + 3600 * 1000 * 24);
+                            picker.$emit('pick', date);
+                        }
+                    }, {
+                        text: '一周',
+                        onClick(picker) {
+                            const date = new Date();
+                            date.setTime(date.getTime() + 3600 * 1000 * 24 * 7);
+                            picker.$emit('pick', date);
+                        }
+                    }, {
+                        text: '十五天',
+                        onClick(picker) {
+                            const date = new Date();
+                            date.setTime(date.getTime() + 3600 * 1000 * 24 * 15);
+                            picker.$emit('pick', date);
+                        }
+                    }, {
+                        text: '三十天',
+                        onClick(picker) {
+                            const date = new Date();
+                            date.setTime(date.getTime() + 3600 * 1000 * 24 * 30);
+                            picker.$emit('pick', date);
+                        }
+                    }, {
+                        text: '一年',
+                        onClick(picker) {
+                            const date = new Date();
+                            date.setTime(date.getTime() + 3600 * 1000 * 24 * 365);
+                            picker.$emit('pick', date);
+                        }
+                    }]
+                },
+                currentPage:1,
+                currentPages:1,
+                borrowName:'',
+                borrowAuthor:'',
+                borrowReserve:'',
+                formLabelWidth: '100px',
+                headerSelected: 'lib-main',//头部导航栏选择显示图书馆主页或个人主页，默认图书馆主页
+                libAsideSelected: 'lib-books',//图书馆主页左侧导航栏选择，所有图书/排行榜/管理/设置
+                personAsideSelected: 'person-main',//个人主页左侧导航栏选择
+                tableSelect:'rate',
+                bookQueryStr: '',
+                books: [],
+                tableData: [],
+                rateTable:[],
+                reserveTable:[],
+                publicTimeTable:[],
+                currentDate: new Date(),
+                user:[],
+                userOwnName:'',
+                userOwnPwd:'',
+                userOwnAge:'',
+                userOwnEmail:'',
+                userOwnAdress:'',
+                userSex:'',
+                userRole:'',
+                isManager: false  ,     //是否是管理员
+                selectBook:'',
+                visible:[],
+                dialogFormVisible:false,
+                dialogRateVisible:false,
+                dialogPersonVisible:false,
+                pageSize:10,
+                bookCount:0,
+                startIndex:0,
+                value: new Date(),
+                active: 0
+            }
+
+        },
+        methods: {
+            headerSelect(key, keyPath) {
+                console.log(key, keyPath);
+                if (key === "1") {
+                    this.headerSelected = 'lib-main'
+                }
+                if (key === "2") {
+                    this.headerSelected = 'person-main'
+                }
+                if(key === "3"){
+                    this.headerSelected = 'setting-main'
+                }
+            },
+            libAsideSelect(key, keyPath) {
+                console.log(key, keyPath);
+                if (key === "1") {
+                    this.libAsideSelected = 'lib-books';
+                    this.httpGetPageBook();
+                } else if (key === "2") {
+                    this.libAsideSelected = 'lib-rank'
+                } else if (key === "3") {
+                    this.libAsideSelected = 'lib-manage'
+                } else {
+                    this.libAsideSelected = 'lib-setting'
+                }
+            },
+            personAsideSelect(key, keyPath) {
+                console.log(key, keyPath);
+                if (key === "1") {
+                    this.personAsideSelected = 'person-main'
+                } else if (key === "2") {
+                    this.personAsideSelected = 'person-manage'
+                }
+            },
+            formatter(row) {
+                return new Date(row.publicTime).toLocaleDateString();
+            },
+            formatter01(row) {
+                return new Date(row.beginTime).toLocaleDateString();
+            },
+            formatter02(row) {
+                return new Date(row.returnTime).toLocaleDateString();
+            },
+            //http方法开始，用于从后台拉取数据
+            httpGetAllBooks() {
+                axios.get("/books").then(resp => {
+                    this.books = resp.data
+                })
+            },
+
+            httpQueryBooks() {
+                this.visible=[];
+                console.log(this.bookQueryStr);
+                if (this.bookQueryStr.trim() === '') {
+                    this.httpGetPageBook()
+                } else {
+                    axios.get("/bookquery/" + this.bookQueryStr).then(resp => {
+                        this.books = resp.data
+                    })
+                }
+            },
+            httpGetCount(){
+                axios.get("/getCount").then(resp => {
+                    this.bookCount = resp.data
+                })
+            },
+            httpGetPageBook(){
+                axios.post("/bookpagequery",{currentPages:this.currentPages,pageSize:this.pageSize} , {headers: {'Content-Type': 'application/json'}}).then(resp=>{
+                    this.books = resp.data
+                })
+            },
+            httpIsManager(){
+                axios.get("/ismanager").then(resp=>{
+                    this.isManager = resp.data;
+                })
+            },
+            httpGetUser(){
+                axios.get("/getUser").then(resp=>{
+                    this.user = resp.data;
+                    this.user_id = resp.data.id;
+                    if(this.user.sex == 1){
+                        this.userSex = '男' ;
+                    }else{
+                        this.userSex = '女' ;
+                    }
+                    if(this.user.role == 1 ){
+                        this.userRole = '管理员';
+                    }
+                    if(this.user.role == 0 ){
+                        this.userRole = '普通用户';
+                    }
+                    if(this.user.role == 2 ){
+                        this.userRole = '游客';
+                    }
+                    this.httpPersonalBooks();
+                })
+            },
+            bookManage(){
+                window.open("bookmanage.html");
+                this.httpGetCount();
+                this.httpGetPageBook();
+            },
+            userManage(){
+                window.open("usermanage.html")
+            },
+            quit(){
+                window.open("login.html",target = "_self");
+            },
+            openSuc() {
+                this.$notify({
+                    title: 'Successful borrowing',
+                    message: '欢迎您再次借书',
+                    type: 'success'
+                });
+                this.httpGetPageBook();
+            },
+            openCue() {
+                this.$message({
+                    showClose: true,
+                    message: '库存不足',
+                    type: 'error',
+                    center: true
+                });
+            },
+            openCueReturn(){
+                this.$message({
+                    showClose: true,
+                    message: '还书成功',
+                    type: 'success',
+                    center: true
+                });
+            },
+            openCueBorrow(){
+                this.$message({
+                    showClose: true,
+                    message: '您没有借书权限',
+                    type: 'warning',
+                    center: true
+                });
+            },
+            openCueChange(){
+                this.$message({
+                    showClose: true,
+                    message: '修改成功',
+                    type: 'success',
+                    center: true
+                });
+            },
+            tableAddClass01({row,rowIndex}){
+                if(row.reserve == 0){
+                    return 'tre-red';
+                }
+                return '';
+            },
+            testListener(row){
+                this.selectBook=row;
+            },
+            handleClose(done) {
+                this.$confirm('确认关闭？')
+                    .then(_ => {
+                        done();
+                    })
+                    .catch(_ => {});
+            },
+            borrow(i){
+                if(this.user.role === 2){
+                    this.openCueBorrow();
+                    return;
+                }
+                this.visible=[];
+                this.visible[i]=true;
+            },
+            defBorrow(){
+                this.dialogFormVisible=true;
+                this.borrowName=this.selectBook.name;
+                this.borrowAuthor=this.selectBook.author;
+                this.borrowReserve=this.selectBook.reserve;
+            },
+            cancelBorrowBook(){
+                this.dialogFormVisible = false;
+                this.visible = [];
+            },
+            lendBook(){
+                this.form.user_id=this.user.id;
+                this.form.book_id=this.selectBook.id;
+                this.form.begin_time = new Date(this.form.begin_time).getTime();
+                this.form.return_time = new Date(this.form.return_time).getTime();
+                this.form.borrow_time=(this.form.return_time-this.form.begin_time)/3600/1000/24;
+                if(this.form.count > this.selectBook.reserve){
+                    this.openCue();
+                    return;
+                }
+                axios.post("/borrowRecode", JSON.stringify(this.form), {headers: {'Content-Type': 'application/json'}}).then(resp=>{
+                    if(resp.data.code === 0) {
+                        this.dialogFormVisible=false;
+                        this.visible=[];
+                        this.openSuc();
+                        this.httpPersonalBooks();
+                        this.httpGetReserveBook();
+                        this.form.return_time = '';
+                        this.form.count = '';
+                    }
+                })
+
+            },
+            handleSizeChange(val) {
+                this.pageSize = val;
+                this.httpGetPageBook();
+            },
+            handleCurrentChange(val) {
+                this.currentPages = val;
+                this.startIndex = (val-1) * this.pageSize;
+                this.httpGetPageBook();
+            },
+            httpPersonalBooks() {
+                axios.get("/getpersonalbooks?user_id="+this.user.id).then(resp => {
+                    this.tableData = resp.data;
+
+                    for(var key = 0 ; key < this.tableData.length; key++){
+                        this.tableData[key].remainDay = Math.ceil((this.tableData[key].returnTime- new Date().getTime())/3600/1000/24);
+                    }
+                })
+            },
+            tableAddClass({row,rowIndex}){
+                if(row.remainDay <= 3){
+                    return 'tre-red';
+                }
+                return '';
+            },
+            returnBook(i){
+                axios.post("/returnbook",{user_id:this.user.id,name:this.tableData[i].name,author:this.tableData[i].author,count:this.tableData[i].count,rate:this.tableData[i].rate,returnTime:this.tableData[i].returnTime} , {headers: {'Content-Type': 'application/json'}}).then(resp=>{
+                    this.httpPersonalBooks();
+                    this.openCueReturn();
+                    this.httpGetRateBook();
+                    this.httpGetReserveBook();
+                })
+            },
+            httpGetRateBook() {
+                axios.get("/getratebook").then(resp => {
+                    this.rateTable = resp.data;
+                })
+            },
+            httpGetReserveBook(){
+                axios.get("/getreservebook").then(resp => {
+                    this.reserveTable = resp.data;
+                })
+            },
+            httpGetPublicTimeBook(){
+                axios.get("/getpublictimebook").then(resp => {
+                    this.publicTimeTable = resp.data;
+                })
+            },
+            httpGetOwnMessage(){
+                axios.get("/getchangeownmessage?id="+this.user.id).then(resp => {
+                    this.user=[];
+                    this.user = resp.data;
+                })
+            },
+            changeOwnMessage(){
+                if(this.userOwnName == ''){
+                    this.userOwnName = this.user.name;
+                }
+                if(this.userOwnPwd == ''){
+                    this.userOwnPwd = this.user.password;
+                }
+                if(this.userOwnAge == ''){
+                    this.userOwnAge = this.user.age;
+                }
+                if(this.userOwnEmail == ''){
+                    this.userOwnEmail = this.user.email;
+                }
+                if(this.userOwnAdress == ''){
+                    this.userOwnAdress = this.user.adress;
+                }
+                axios.post("/changeownmessage",{id:this.user.id,name:this.userOwnName,password:this.userOwnPwd,age:this.userOwnAge,sex:this.user.sex,email:this.userOwnEmail,role:this.user.role,adress:this.userOwnAdress} , {headers: {'Content-Type': 'application/json'}}).then(resp=>{
+                    if(resp.data == 0){
+                        this.dialogPersonVisible = false;
+                        this.httpGetOwnMessage();
+                        this.openCueChange();
+                    }
+                })
+
+            },
+            next() {
+                if (this.active++ > 3) this.active = 0;
+                if(this.active==1){
+                    this.open1();
+                }
+                if(this.active==2){
+                    this.open2();
+                }
+                if(this.active==3){
+                    this.open3();
+                }
+                if(this.active==4){
+                    this.open4();
+                }
+            },
+            open1() {
+                this.$notify.info({
+                    title: '登录',
+                    message: '通过图书馆内大厅电脑登录，自己的帐号。'
+                });
+            },
+            open2() {
+                this.$notify.info({
+                    title: '查书',
+                    message: '在图书管理系统的搜索框中搜索想要借阅的书籍的书名。'
+                });
+            },
+            open3() {
+                this.$notify.info({
+                    title: '借书',
+                    message: '需要填写还书时间和借书的数量（有借书权限）.'
+                });
+            },
+            open4() {
+                this.$notify({
+                    title: '还书',
+                    message: '限定时间内再次登录帐号，在个人主页，归还所借书籍。',
+                    type: 'success'
+                });
+            }
+        },
+        mounted() {
+            this.httpGetCount();
+            this.httpGetPageBook();
+            this.httpIsManager();
+            this.httpGetUser();
+            this.httpGetRateBook();
+            this.httpGetReserveBook();
+            this.httpGetPublicTimeBook();
+        }
+    })
+</script>
+</html>
